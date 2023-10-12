@@ -3,27 +3,37 @@ if (!extension_loaded('gd') || !function_exists('imagecreatefromwebp') || !funct
     die('GD extension with WebP support is not available on this server.');
 }
 
+function isWebP($filename) {
+    $allowed_types = ['image/webp'];
+    return in_array(mime_content_type($filename), $allowed_types);
+}
+
+function sanitizeFileName($filename) {
+    $filename = preg_replace('/[^a-zA-Z0-9_.-]/', '', $filename);
+    return $filename;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['webp_file'])) {
     $webp_file = $_FILES['webp_file'];
-    $allowed_types = ['image/webp'];
-    if (in_array($webp_file['type'], $allowed_types)) {
-        // Create a GD image resource from the uploaded webp file
-        $webp_image = imagecreatefromwebp($webp_file['tmp_name']);
 
-        if ($webp_image) {
-            // Define the output JPEG file path
-            $output_file = 'converted.jpg';
-            if (imagejpeg($webp_image, $output_file, 100)) {
-                echo 'WebP to JPEG conversion successful. <a href="' . $output_file . '">Download JPEG</a>';
-            } else {
-                echo 'Error saving the JPEG file.';
-            }
-            imagedestroy($webp_image);
+    if (!isWebP($webp_file['tmp_name'])) {
+        die('Invalid file type. Please upload a valid WebP image.');
+    }
+
+    $output_file = sanitizeFileName($webp_file['name']);
+    $webp_image = imagecreatefromwebp($webp_file['tmp_name']);
+
+    if ($webp_image) {
+        $output_file = 'converted_' . $output_file . '.jpg';
+
+        if (imagejpeg($webp_image, $output_file, 100)) {
+            echo 'WebP to JPEG conversion successful. <a href="' . htmlspecialchars($output_file) . '">Download JPEG</a>';
         } else {
-            echo 'Error creating GD image resource from the WebP file.';
+            echo 'Error saving the JPEG file.';
         }
+        imagedestroy($webp_image);
     } else {
-        echo 'Invalid file type. Please upload a valid WebP image.';
+        echo 'Error creating GD image resource from the WebP file.';
     }
 }
 ?>
